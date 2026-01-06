@@ -1,17 +1,20 @@
-"""
-FastAPI application with endpoints for shoe shopping.
-Provides browsing, filtering, and AI-powered search functionality.
-"""
-from fastapi import FastAPI, HTTPException, Query
+"""FastAPI application with enhanced error handling and validation."""
+
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from typing import Optional
+from typing import Optional, List
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models import (
     ShoeProduct,
     ProductDetail,
+    ProductListResponse,
     ProductFilter,
     ProductListResponse,
     SearchRequest,
@@ -29,22 +32,22 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
 # Custom middleware to add CORS headers for testing
 class CORSHeaderMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request, call_next):
         response = await call_next(request)
-        # Always add CORS header for testing (in production, FastAPI CORS middleware handles this)
         if "access-control-allow-origin" not in response.headers:
             response.headers["access-control-allow-origin"] = "*"
         return response
 
-# Add custom CORS header middleware
+
 app.add_middleware(CORSHeaderMiddleware)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins + ["*"],  # Allow all origins for development
+    allow_origins=settings.cors_origins + ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,7 +60,6 @@ dynamodb_client = DynamoDBClient(
     mock_mode=settings.mock_mode,
 )
 
-# Initialize Bedrock client only if credentials are provided
 bedrock_client = None
 if settings.bedrock_agent_id and settings.bedrock_agent_alias_id:
     bedrock_client = BedrockClient(
@@ -67,7 +69,6 @@ if settings.bedrock_agent_id and settings.bedrock_agent_alias_id:
         mock_mode=settings.mock_mode,
     )
 else:
-    # Use mock mode if no credentials
     bedrock_client = BedrockClient(
         agent_id="mock-agent-id",
         agent_alias_id="mock-alias-id",
@@ -79,13 +80,11 @@ else:
 # Health Check Endpoint
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """
-    Health check endpoint to verify API is running.
-
-    Returns:
-        HealthResponse with status
-    """
-    return HealthResponse(status="healthy", message="All systems operational")
+    try:
+        return HealthResponse(status="healthy", message="All systems operational")
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Products Endpoints
@@ -99,24 +98,19 @@ async def get_products(
 ):
     """
     Retrieve all products with optional filters.
-
-    Args:
-        type: Filter by shoe type (running, casual, formal, etc.)
-        color: Filter by color
-        size: Filter by available size
-        price_min: Minimum price filter
-        price_max: Maximum price filter
-
-    Returns:
-        ProductListResponse containing filtered products
-
-    Raises:
-        HTTPException: If database query fails
     """
     try:
-        # Check if any filters are provided
+        # Validate price range
+        if price_min is not None and price_max is not None and price_min > price_max:
+            raise HTTPException(
+                status_code=400, detail="price_min cannot exceed price_max"
+            )
+
+        # Validate size range (optional)
+        if size is not None and (size < 6 or size > 13):
+            raise HTTPException(status_code=400, detail="size must be between 6 and 13")
+
         if any([type, color, size, price_min, price_max]):
-            # Use filtered query
             products = dynamodb_client.get_products_by_filters(
                 type=type,
                 color=color,
@@ -125,88 +119,70 @@ async def get_products(
                 price_max=price_max,
             )
         else:
-            # Get all products
             products = dynamodb_client.get_all_products()
 
-        # Convert to Pydantic models
         shoe_products = [ShoeProduct(**product) for product in products]
-
         return ProductListResponse(products=shoe_products)
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving products: {str(e)}")
+        logger.error(f"Error retrieving products: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving products: {str(e)}"
+        )
 
 
 @app.get("/api/products/{shoe_id}", response_model=ProductDetail)
 async def get_product_by_id(shoe_id: str):
     """
     Retrieve a single product by its ID.
-
-    Args:
-        shoe_id: The unique shoe product ID
-
-    Returns:
-        ProductDetail for the requested shoe
-
-    Raises:
-        HTTPException: If product not found or database error
     """
     try:
         product = dynamodb_client.get_product_by_id(shoe_id)
-
         if product is None:
-            raise HTTPException(status_code=404, detail=f"Product with ID '{shoe_id}' not found")
-
+            raise HTTPException(
+                status_code=404, detail=f"Product with ID '{shoe_id}' not found"
+            )
         return ProductDetail(**product)
-
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving product: {str(e)}")
+        logger.error(f"Error retrieving product {shoe_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving product: {str(e)}"
+        )
 
 
 @app.get("/api/featured", response_model=ProductListResponse)
 async def get_featured_products():
     """
     Retrieve featured products for homepage display.
-
-    Returns:
-        ProductListResponse containing only featured products
-
-    Raises:
-        HTTPException: If database query fails
     """
     try:
         products = dynamodb_client.get_featured_products()
         shoe_products = [ShoeProduct(**product) for product in products]
-
         return ProductListResponse(products=shoe_products)
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving featured products: {str(e)}")
+        logger.error(f"Error retrieving featured products: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving featured products: {str(e)}"
+        )
 
 
 @app.get("/api/categories", response_model=CategoriesResponse)
 async def get_categories():
     """
     Retrieve all available categories (types and colors).
-
-    Returns:
-        CategoriesResponse with lists of types and colors
-
-    Raises:
-        HTTPException: If database query fails
     """
     try:
         categories = dynamodb_client.get_categories()
-
         return CategoriesResponse(
             types=categories["types"],
             colors=categories["colors"],
         )
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving categories: {str(e)}")
+        logger.error(f"Error retrieving categories: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving categories: {str(e)}"
+        )
 
 
 # AI Search Endpoint
@@ -214,21 +190,19 @@ async def get_categories():
 async def search_products(request: SearchRequest):
     """
     Natural language search using Bedrock agent.
-
-    Args:
-        request: SearchRequest containing natural language query
-
-    Returns:
-        SearchResponse with agent response and matching products
-
-    Raises:
-        HTTPException: If query is invalid or agent invocation fails
     """
     try:
-        # Validate query
+        # Validate query presence
         if not request.query or request.query.strip() == "":
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
+        # Validate query length (optional)
+        if len(request.query.strip()) > 200:
+            raise HTTPException(status_code=400, detail="Query exceeds maximum length")
+
+        # Ensure bedrock client is configured
+        if not bedrock_client:
+            raise HTTPException(status_code=500, detail="Bedrock client not configured")
         # Invoke Bedrock agent
         result = bedrock_client.invoke_agent(
             query=request.query,
@@ -243,13 +217,16 @@ async def search_products(request: SearchRequest):
             products=products,
             session_id=result.get("session_id"),
         )
-
     except HTTPException:
         raise
     except ValueError as e:
+        logger.error(f"Validation error in search request: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing search: {str(e)}")
+        logger.error(f"Error processing search: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing search: {str(e)}"
+        )
 
 
 # Root endpoint
@@ -257,9 +234,6 @@ async def search_products(request: SearchRequest):
 async def root():
     """
     Root endpoint with API information.
-
-    Returns:
-        Dictionary with API details
     """
     return {
         "name": settings.app_name,

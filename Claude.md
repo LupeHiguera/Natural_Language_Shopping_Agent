@@ -1,5 +1,22 @@
 # AWS Bedrock Shopping Agent - Learning Project
 
+---
+## IMPORTANT: Learning-First Approach
+
+**Primary Guide:** See `LearningPlan.md` for the structured weekend learning plan.
+
+**Goal:** Learn AWS + Terraform skills for the Deckers Brands GenAI Lead interview. The app is already built - now focus on infrastructure.
+
+**The aws-learning-coach agent is active.** It will:
+- Challenge you to explain code before moving on
+- Ask interview-style questions to verify understanding
+- Call out shortcuts or copy-pasting without comprehension
+- Track your 16-hour time budget
+
+**Remember:** A working demo you can't explain is worthless. A simple demo you deeply understand gets the job.
+
+---
+
 ## Project Overview
 A shoe shopping website hosted on AWS featuring a Bedrock Agent that enables natural language search through a product database. This project focuses on learning AWS services, Bedrock Agent configuration, and prompt engineering while using AI-assisted coding for the application layer.
 
