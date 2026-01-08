@@ -12,3 +12,12 @@ resource "aws_lambda_function" "search_shoes" {
   runtime       = "python3.11"
   source_code_hash = data.archive_file.search_shoes.output_base64sha256
 }
+
+# Allow Bedrock to invoke the search_shoes Lambda
+resource "aws_lambda_permission" "bedrock_invoke" {
+  statement_id  = "AllowBedrockInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.search_shoes.function_name
+  principal     = "bedrock.amazonaws.com"
+  source_arn    = "arn:aws:bedrock:${var.aws_region}:814929013775:agent/${var.bedrock_agent_id}"
+}

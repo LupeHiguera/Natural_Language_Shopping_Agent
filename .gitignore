@@ -222,6 +222,10 @@ infra/terraform.tfstate.backup
 
 # Lambda build artifacts
 lambda/**/*.zip
+backend/lambda_package.zip
+
+# Build directories
+build/
 
 # Windows temp files
 nul

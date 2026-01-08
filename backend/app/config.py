@@ -2,7 +2,9 @@
 Configuration module for backend application.
 Handles environment variables and application settings.
 """
+import os
 from pydantic_settings import BaseSettings
+from pydantic import computed_field
 from typing import Optional
 
 
@@ -25,15 +27,14 @@ class Settings(BaseSettings):
     app_name: str = "Shoe Shopping Agent"
     debug: bool = False
 
-    # CORS Configuration - Add your S3/CloudFront URL here when deployed
-    cors_origins: list[str] = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        # Add your S3 bucket URL here, e.g.:
-        # "http://your-bucket-name.s3-website-us-east-1.amazonaws.com",
-        # Or CloudFront URL:
-        # "https://d1234567890.cloudfront.net",
-    ]
+    # CORS Configuration - stored as comma-separated string for env var compatibility
+    cors_origins_str: str = "http://localhost:5173,http://localhost:3000"
+
+    @computed_field
+    @property
+    def cors_origins(self) -> list[str]:
+        """Parse CORS origins from comma-separated string."""
+        return [origin.strip() for origin in self.cors_origins_str.split(",") if origin.strip()]
 
     # Mock Mode (for development before AWS setup)
     mock_mode: bool = True
