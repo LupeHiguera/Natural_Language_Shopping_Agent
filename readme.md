@@ -195,7 +195,7 @@ The agent handles natural language queries like:
 
 **Guadalupe Higuera**
 - GitHub: [https://github.com/LupeHiguera](https://github.com/LupeHiguera)
-- LinkedIn: [https://www.linkedin.com/in/guadalupe-higuera/](https://linkedin.com/in/guadalupe-higuera)
+- LinkedIn: [https://www.linkedin.com/in/guadalupe-higuera/](https://linkedin.com/in/guadalupe-higuera/)
 - Email: Guadalupe.Higuera@protonmail.com
 
 ## 📄 License
