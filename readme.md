@@ -2,12 +2,6 @@
 
 A natural language shoe shopping application powered by AWS Bedrock Agents. Users can search for products using conversational queries like "show me red running shoes under $100" and the AI agent interprets the request, queries the database, and returns matching products.
 
-![Architecture Diagram](docs/architecture.png)
-
-## 🎯 Live Demo
-
-**[Try it here →](https://your-cloudfront-url.com)**
-
 ## 🏗️ Architecture
 
 ```
@@ -200,8 +194,8 @@ The agent handles natural language queries like:
 ## 👤 Author
 
 **Guadalupe Higuera**
-- GitHub: [https://github.com/LupeHiguera](https://github.com/yourusername)
-- LinkedIn: [https://www.linkedin.com/in/guadalupe-higuera/](https://linkedin.com/in/yourprofile)
+- GitHub: [https://github.com/LupeHiguera](https://github.com/LupeHiguera)
+- LinkedIn: [https://www.linkedin.com/in/guadalupe-higuera/](https://linkedin.com/in/guadalupe-higuera)
 - Email: Guadalupe.Higuera@protonmail.com
 
 ## 📄 License
