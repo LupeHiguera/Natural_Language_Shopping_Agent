@@ -25,8 +25,15 @@ class Settings(BaseSettings):
     app_name: str = "Shoe Shopping Agent"
     debug: bool = False
 
-    # CORS Configuration
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # CORS Configuration - Add your S3/CloudFront URL here when deployed
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        # Add your S3 bucket URL here, e.g.:
+        # "http://your-bucket-name.s3-website-us-east-1.amazonaws.com",
+        # Or CloudFront URL:
+        # "https://d1234567890.cloudfront.net",
+    ]
 
     # Mock Mode (for development before AWS setup)
     mock_mode: bool = True

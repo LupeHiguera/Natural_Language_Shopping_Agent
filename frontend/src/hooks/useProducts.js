@@ -12,7 +12,7 @@ export const useProducts = (filters = {}) => {
       setError(null);
       try {
         const data = await getProducts(filters);
-        setProducts(data);
+        setProducts(data.products || []);
       } catch (err) {
         setError(err.message || 'Failed to fetch products');
       } finally {
@@ -37,7 +37,7 @@ export const useFeaturedProducts = () => {
       setError(null);
       try {
         const data = await getFeaturedProducts();
-        setProducts(data);
+        setProducts(data.products || []);
       } catch (err) {
         setError(err.message || 'Failed to fetch featured products');
       } finally {

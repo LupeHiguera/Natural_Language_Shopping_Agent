@@ -15,13 +15,14 @@ class ShoeProduct(BaseModel):
     brand: str
     type: str
     color: str
-    sizes: list[float]
+    sizes: list[float] = []
     price: float
-    image_url: str
-    description: str
+    image_url: Optional[str] = "https://placehold.co/300x300?text=Shoe"
+    description: Optional[str] = ""
     featured: bool = False
-    rating: float = Field(ge=0.0, le=5.0)
+    rating: Optional[float] = Field(default=4.0, ge=0.0, le=5.0)
     stock: bool = True
+    size: Optional[float] = None  # Single size from DynamoDB
 
     class Config:
         json_schema_extra = {

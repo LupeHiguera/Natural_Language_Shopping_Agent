@@ -205,3 +205,23 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Claude Code / AI Assistant files
+CLAUDE.md
+Claude.md
+SESSION_PROGRESS.md
+LearningPlan.md
+
+# Terraform
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+*.tfstate
+*.tfstate.*
+
+# Lambda build artifacts
+lambda/**/*.zip
+
+# Windows temp files
+nul

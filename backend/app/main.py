@@ -1,8 +1,7 @@
 """FastAPI application with enhanced error handling and validation."""
 
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, List
 import logging
 
@@ -33,24 +32,14 @@ app = FastAPI(
 )
 
 
-# Custom middleware to add CORS headers for testing
-class CORSHeaderMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        response = await call_next(request)
-        if "access-control-allow-origin" not in response.headers:
-            response.headers["access-control-allow-origin"] = "*"
-        return response
 
-
-app.add_middleware(CORSHeaderMiddleware)
-
-# Configure CORS
+# Configure CORS - Only allow specific origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins + ["*"],
+    allow_origins=settings.cors_origins,  # Only configured origins, no wildcard
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],  # Only methods we actually use
+    allow_headers=["Content-Type", "Authorization"],  # Only headers we need
 )
 
 # Initialize clients
@@ -123,6 +112,8 @@ async def get_products(
 
         shoe_products = [ShoeProduct(**product) for product in products]
         return ProductListResponse(products=shoe_products)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error retrieving products: {e}")
         raise HTTPException(

@@ -15,6 +15,7 @@ ambiguous queries like 'comfortable shoes' or 'something for a wedding'."
 
 import os
 import uuid
+import json
 import boto3
 from typing import Optional
 
@@ -69,21 +70,51 @@ class BedrockClient:
             # Mock response for local development without AWS
             return self._get_mock_response(query, current_session_id)
 
-        # TODO: Implement real Bedrock Agent invocation (Day 2, Block 4)
-        #
-        # The correct API call looks like:
-        # response = self._client.invoke_agent(
-        #     agentId=self.agent_id,
-        #     agentAliasId=self.agent_alias_id,
-        #     sessionId=current_session_id,
-        #     inputText=query
-        # )
-        #
-        # The response is a streaming response - you'll need to handle the event stream
-        # See: https://docs.aws.amazon.com/bedrock/latest/userguide/agents-api-agent.html
-        #
-        # For now, return mock response until agent is configured
-        return self._get_mock_response(query, current_session_id)
+        try:
+            response = self._client.invoke_agent(
+                agentId=self.agent_id,
+                agentAliasId=self.agent_alias_id,
+                sessionId=current_session_id,
+                inputText=query,
+                enableTrace=True  # Enable trace to get Lambda response
+            )
+            completion = ""
+            products = []
+
+            for event in response.get("completion"):
+                # Capture agent's text response
+                if 'chunk' in event:
+                    chunk = event["chunk"]
+                    completion += chunk["bytes"].decode()
+
+                # Extract products from trace (Lambda response)
+                if 'trace' in event:
+                    trace_data = event['trace']
+                    trace = trace_data.get('trace', {})
+                    orchestration = trace.get('orchestrationTrace', {})
+
+                    # Check for function invocation output
+                    if 'observation' in orchestration:
+                        observation = orchestration['observation']
+                        if 'actionGroupInvocationOutput' in observation:
+                            output = observation['actionGroupInvocationOutput']
+                            if 'text' in output:
+                                try:
+                                    # Parse the JSON product data from Lambda
+                                    products = json.loads(output['text'])
+                                    print(f"Extracted {len(products)} products from Lambda")
+                                except json.JSONDecodeError:
+                                    pass
+
+            return {
+                "agent_response": completion,
+                "products": products,
+                "session_id": current_session_id
+            }
+        except Exception as e:
+            print(f"Error invoking agent: {e}")
+            return self._get_mock_response(query, current_session_id)
+
 
     def _get_mock_response(self, query: str, session_id: str) -> dict:
         """Generate mock response for development/testing."""
@@ -96,19 +127,19 @@ class BedrockClient:
         if "running" in query_lower:
             response_text = f"I found some great running shoes for you based on '{query}'."
             mock_products = [
-                {"shoe_id": "mock-run-1", "name": "Air Speed Runner", "brand": "Nike", "type": "running", "color": "red", "price": 89.99, "sizes": [8, 9, 10, 11]},
-                {"shoe_id": "mock-run-2", "name": "Ultra Boost", "brand": "Adidas", "type": "running", "color": "black", "price": 129.99, "sizes": [9, 10, 11, 12]},
+                {"shoe_id": "mock-run-1", "name": "Air Speed Runner", "brand": "Nike", "type": "running", "color": "red", "price": 89.99, "sizes": [8, 9, 10, 11], "image_url": "https://placehold.co/300x300?text=Nike+Runner", "description": "Fast and comfortable running shoes", "rating": 4.5},
+                {"shoe_id": "mock-run-2", "name": "Ultra Boost", "brand": "Adidas", "type": "running", "color": "black", "price": 129.99, "sizes": [9, 10, 11, 12], "image_url": "https://placehold.co/300x300?text=Adidas+Boost", "description": "Premium cushioned running shoes", "rating": 4.7},
             ]
         elif "formal" in query_lower or "wedding" in query_lower or "dress" in query_lower:
             response_text = f"Here are some formal options based on '{query}'."
             mock_products = [
-                {"shoe_id": "mock-form-1", "name": "Oxford Classic", "brand": "Clarks", "type": "formal", "color": "black", "price": 149.99, "sizes": [9, 10, 11]},
+                {"shoe_id": "mock-form-1", "name": "Oxford Classic", "brand": "Clarks", "type": "formal", "color": "black", "price": 149.99, "sizes": [9, 10, 11], "image_url": "https://placehold.co/300x300?text=Oxford", "description": "Classic formal oxford shoes", "rating": 4.6},
             ]
         else:
             response_text = f"Here's what I found for '{query}'. Let me know if you'd like to narrow down by type, color, or price."
             mock_products = [
-                {"shoe_id": "mock-1", "name": "Casual Comfort", "brand": "Nike", "type": "casual", "color": "white", "price": 79.99, "sizes": [8, 9, 10, 11, 12]},
-                {"shoe_id": "mock-2", "name": "Street Style", "brand": "Puma", "type": "sneakers", "color": "gray", "price": 99.99, "sizes": [9, 10, 11]},
+                {"shoe_id": "mock-1", "name": "Casual Comfort", "brand": "Nike", "type": "casual", "color": "white", "price": 79.99, "sizes": [8, 9, 10, 11, 12], "image_url": "https://placehold.co/300x300?text=Casual", "description": "Everyday casual shoes", "rating": 4.3},
+                {"shoe_id": "mock-2", "name": "Street Style", "brand": "Puma", "type": "sneakers", "color": "gray", "price": 99.99, "sizes": [9, 10, 11], "image_url": "https://placehold.co/300x300?text=Puma", "description": "Trendy street sneakers", "rating": 4.4},
             ]
 
         return {

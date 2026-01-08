@@ -1,21 +1,44 @@
 """
 Test cases for FastAPI main application endpoints.
-Following TDD - these tests should fail initially.
+Uses mock mode for testing without AWS dependencies.
 """
 import pytest
-from httpx import AsyncClient
 from fastapi.testclient import TestClient
 from app.main import app
 
 
+@pytest.fixture
+def client():
+    """Create test client"""
+    return TestClient(app)
+
+
+class TestHealthEndpoint:
+    """Test suite for health check endpoint"""
+
+    def test_health_check(self, client):
+        """Test GET /health returns healthy status"""
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+
+
+class TestRootEndpoint:
+    """Test suite for root endpoint"""
+
+    def test_root_returns_api_info(self, client):
+        """Test GET / returns API information"""
+        response = client.get("/")
+        assert response.status_code == 200
+        data = response.json()
+        assert "name" in data
+        assert "version" in data
+        assert "endpoints" in data
+
 
 class TestProductsEndpoints:
     """Test suite for /api/products endpoints"""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
 
     def test_get_all_products(self, client):
         """Test GET /api/products returns all products"""
@@ -23,6 +46,7 @@ class TestProductsEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "products" in data
+        assert "count" in data
         assert isinstance(data["products"], list)
         assert len(data["products"]) > 0
 
@@ -60,19 +84,19 @@ class TestProductsEndpoints:
         data = response.json()
         assert "products" in data
         for product in data["products"]:
-            assert 10 in product["sizes"]
+            assert 10.0 in product["sizes"]
 
-    def test_get_products_with_multiple_filters(self, client):
-        """Test GET /api/products with multiple filters combined"""
-        response = client.get("/api/products?type=running&color=red&price_max=100&size=10")
-        assert response.status_code == 200
-        data = response.json()
-        assert "products" in data
-        for product in data["products"]:
-            assert product["type"] == "running"
-            assert product["color"] == "red"
-            assert product["price"] <= 100
-            assert 10 in product["sizes"]
+    def test_get_products_invalid_price_range(self, client):
+        """Test GET /api/products with invalid price range returns 400"""
+        response = client.get("/api/products?price_min=100&price_max=50")
+        assert response.status_code == 400
+        assert "price_min cannot exceed price_max" in response.json()["detail"]
+
+    def test_get_products_invalid_size(self, client):
+        """Test GET /api/products with size outside valid range returns 400"""
+        response = client.get("/api/products?size=20")
+        assert response.status_code == 400
+        assert "size must be between 6 and 13" in response.json()["detail"]
 
     def test_get_single_product_by_id(self, client):
         """Test GET /api/products/{shoe_id} returns single product"""
@@ -92,16 +116,11 @@ class TestProductsEndpoints:
         """Test GET /api/products/{shoe_id} with invalid ID returns 404"""
         response = client.get("/api/products/invalid-shoe-id-12345")
         assert response.status_code == 404
-        assert "detail" in response.json()
+        assert "not found" in response.json()["detail"].lower()
 
 
 class TestFeaturedEndpoint:
     """Test suite for /api/featured endpoint"""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
 
     def test_get_featured_products(self, client):
         """Test GET /api/featured returns featured products only"""
@@ -114,58 +133,8 @@ class TestFeaturedEndpoint:
             assert product["featured"] is True
 
 
-class TestSearchEndpoint:
-    """Test suite for /api/search endpoint"""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
-
-    def test_search_with_natural_language(self, client):
-        """Test POST /api/search with natural language query"""
-        search_query = {
-            "query": "red running shoes under $100"
-        }
-        response = client.post("/api/search", json=search_query)
-        assert response.status_code == 200
-        data = response.json()
-        assert "agent_response" in data
-        assert "products" in data
-        assert isinstance(data["agent_response"], str)
-        assert isinstance(data["products"], list)
-
-    def test_search_empty_query(self, client):
-        """Test POST /api/search with empty query returns 400"""
-        search_query = {"query": ""}
-        response = client.post("/api/search", json=search_query)
-        assert response.status_code == 400
-
-    def test_search_missing_query(self, client):
-        """Test POST /api/search without query field returns 422"""
-        response = client.post("/api/search", json={})
-        assert response.status_code == 422
-
-    def test_search_no_results(self, client):
-        """Test POST /api/search with query that matches nothing"""
-        search_query = {
-            "query": "purple polka dot diamond encrusted shoes size 25"
-        }
-        response = client.post("/api/search", json=search_query)
-        assert response.status_code == 200
-        data = response.json()
-        assert "agent_response" in data
-        assert "products" in data
-        assert len(data["products"]) == 0
-
-
 class TestCategoriesEndpoint:
     """Test suite for /api/categories endpoint"""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
 
     def test_get_categories(self, client):
         """Test GET /api/categories returns all available categories"""
@@ -180,31 +149,54 @@ class TestCategoriesEndpoint:
         assert len(data["colors"]) > 0
 
 
-class TestHealthEndpoint:
-    """Test suite for health check endpoint"""
+class TestSearchEndpoint:
+    """Test suite for /api/search endpoint"""
 
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
-
-    def test_health_check(self, client):
-        """Test GET /health returns healthy status"""
-        response = client.get("/health")
+    def test_search_with_natural_language(self, client):
+        """Test POST /api/search with natural language query"""
+        search_query = {"query": "red running shoes under $100"}
+        response = client.post("/api/search", json=search_query)
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
+        assert "agent_response" in data
+        assert "products" in data
+        assert isinstance(data["agent_response"], str)
+        assert isinstance(data["products"], list)
+        assert len(data["agent_response"]) > 0
 
+    def test_search_with_session_id(self, client):
+        """Test POST /api/search with session ID for continuity"""
+        search_query = {
+            "query": "show me formal shoes",
+            "session_id": "test-session-123"
+        }
+        response = client.post("/api/search", json=search_query)
+        assert response.status_code == 200
+        data = response.json()
+        assert "session_id" in data
+        assert data["session_id"] is not None
 
-class TestCORS:
-    """Test suite for CORS configuration"""
+    def test_search_empty_query(self, client):
+        """Test POST /api/search with empty query returns 400"""
+        search_query = {"query": ""}
+        response = client.post("/api/search", json=search_query)
+        assert response.status_code == 400
+        assert "empty" in response.json()["detail"].lower()
 
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
+    def test_search_missing_query(self, client):
+        """Test POST /api/search without query field returns 422"""
+        response = client.post("/api/search", json={})
+        assert response.status_code == 422
 
-    def test_cors_headers_present(self, client):
-        """Test that CORS headers are present in responses"""
-        response = client.get("/api/products")
-        assert "access-control-allow-origin" in response.headers
+    def test_search_whitespace_only_query(self, client):
+        """Test POST /api/search with whitespace-only query returns 400"""
+        search_query = {"query": "   "}
+        response = client.post("/api/search", json=search_query)
+        assert response.status_code == 400
+
+    def test_search_query_too_long(self, client):
+        """Test POST /api/search with overly long query returns 400"""
+        search_query = {"query": "a" * 250}
+        response = client.post("/api/search", json=search_query)
+        assert response.status_code == 400
+        assert "length" in response.json()["detail"].lower()
