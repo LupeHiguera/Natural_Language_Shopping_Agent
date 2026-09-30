@@ -1,9 +1,8 @@
 """
 Pydantic models for request/response validation.
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 from typing import Optional
-from decimal import Decimal
 
 
 # Product Models
@@ -15,14 +14,21 @@ class ShoeProduct(BaseModel):
     brand: str
     type: str
     color: str
-    sizes: list[float] = []
+    sizes: list[float] = Field(default_factory=list)
     price: float
     image_url: Optional[str] = "https://placehold.co/300x300?text=Shoe"
     description: Optional[str] = ""
     featured: bool = False
     rating: Optional[float] = Field(default=4.0, ge=0.0, le=5.0)
-    stock: bool = True
+    stock: bool = Field(True, validation_alias=AliasChoices("stock", "in_stock"))
     size: Optional[float] = None  # Single size from DynamoDB
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_sizes(cls, values):
+        if isinstance(values, dict) and not values.get("sizes") and values.get("size") is not None:
+            return {**values, "sizes": [values["size"]]}
+        return values
 
     class Config:
         json_schema_extra = {
@@ -120,7 +126,7 @@ class ProductListResponse(BaseModel):
 class SearchRequest(BaseModel):
     """Model for natural language search request"""
 
-    query: str = Field(..., description="Natural language search query")
+    query: str = Field(..., max_length=500, description="Natural language search query")
     session_id: Optional[str] = Field(
         None, description="Session ID for conversation continuity"
     )

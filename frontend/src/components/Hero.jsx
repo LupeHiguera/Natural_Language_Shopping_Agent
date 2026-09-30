@@ -1,47 +1,7 @@
 import { Link } from 'react-router-dom';
-
-const Hero = () => {
-  return (
-    <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 text-white overflow-hidden">
-      <div className="absolute inset-0 bg-black opacity-20"></div>
-
-      <div className="relative container mx-auto px-4 py-20 md:py-32">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-            Find Your Perfect Shoes with AI
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 text-blue-100">
-            Shop smarter with our AI-powered search. Just describe what you're looking for in natural language.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link
-              to="/browse"
-              className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition text-center"
-            >
-              Browse All Shoes
-            </Link>
-            <button
-              onClick={() => {
-                const searchInput = document.querySelector('input[type="text"]');
-                if (searchInput) {
-                  searchInput.focus();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-              }}
-              className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition text-center"
-            >
-              Try AI Search
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Decorative Elements */}
-      <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-blue-400 rounded-full opacity-20 blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-64 h-64 bg-purple-400 rounded-full opacity-20 blur-3xl"></div>
-    </div>
-  );
-};
-
-export default Hero;
+export default function Hero() {
+  return <section className="shell hero">
+    <div className="hero-copy"><p className="eyebrow"><span className="live-dot" />Less searching. More stepping.</p><h1>A good day starts<br />with the <span>right pair.</span></h1><p className="hero-description">For the morning miles, the everyday moments, and everything in between. Find shoes that fit your life.</p><div className="hero-actions"><Link className="button button-dark" to="/browse">Explore the collection <span aria-hidden="true">↗</span></Link><a className="text-link" href="#shoe-search" onClick={() => document.getElementById('shoe-search')?.focus()}>Or describe your perfect pair <span aria-hidden="true">↗</span></a></div><div className="hero-note"><span aria-hidden="true">✳</span><span>Your words. Your style.<br /><strong>A more natural way to search.</strong></span></div></div>
+    <div className="hero-visual"><div className="hero-visual-top"><span>THE EVERYDAY EDIT</span><span>RUNNING</span></div><div className="hero-photo"><img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=85" alt="Red running shoe on a red background" fetchPriority="high" /></div><div className="hero-visual-bottom"><div><span>Made for your next move</span><strong>Go a little further.</strong></div><Link to="/browse?type=running" className="round-arrow" aria-label="Browse running shoes">↗</Link></div></div>
+  </section>;
+}

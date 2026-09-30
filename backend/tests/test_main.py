@@ -200,3 +200,13 @@ class TestSearchEndpoint:
         response = client.post("/api/search", json=search_query)
         assert response.status_code == 400
         assert "length" in response.json()["detail"].lower()
+
+
+class TestCORS:
+    def test_configured_origin_is_allowed(self, client):
+        response = client.get("/api/products", headers={"Origin": "http://localhost:5173"})
+        assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+    def test_unlisted_origin_is_not_allowed(self, client):
+        response = client.get("/api/products", headers={"Origin": "https://unlisted.example"})
+        assert "access-control-allow-origin" not in response.headers
