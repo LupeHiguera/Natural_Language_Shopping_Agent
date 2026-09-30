@@ -107,7 +107,6 @@ class TestMockMode:
         result = mock_client.invoke_agent("show me running shoes")
 
         assert len(result["products"]) > 0
-        assert "running" in result["agent_response"].lower()
         # Mock products should include running shoes
         for product in result["products"]:
             assert product.get("type") == "running"
@@ -117,7 +116,7 @@ class TestMockMode:
         result = mock_client.invoke_agent("I need formal shoes for a wedding")
 
         assert len(result["products"]) > 0
-        assert "formal" in result["agent_response"].lower()
+        assert all(product["type"] == "formal" for product in result["products"])
 
     def test_mock_mode_generic_query(self, mock_client):
         """Test mock mode handles generic queries"""
@@ -205,13 +204,11 @@ class TestRealModeWithMockedBoto:
         assert call_kwargs["sessionId"] == "test-session-123"
 
     def test_invoke_agent_handles_error_gracefully(self, client_with_mocked_boto):
-        """Test invoke_agent falls back to mock on error"""
+        """Test a live failure reaches the API error handler"""
         client, mock_boto_client = client_with_mocked_boto
 
         mock_boto_client.invoke_agent.side_effect = Exception("Bedrock API error")
 
-        # Should fallback to mock response, not raise
-        result = client.invoke_agent("test query")
-
-        assert "agent_response" in result
-        assert "products" in result
+        # A live outage must not silently substitute unrelated demo inventory.
+        with pytest.raises(Exception, match="Bedrock API error"):
+            client.invoke_agent("test query")

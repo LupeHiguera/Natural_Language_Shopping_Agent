@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List
+from typing import Optional
 import logging
 
 # Configure logging
@@ -13,8 +13,6 @@ from app.config import settings
 from app.models import (
     ShoeProduct,
     ProductDetail,
-    ProductListResponse,
-    ProductFilter,
     ProductListResponse,
     SearchRequest,
     SearchResponse,
@@ -37,7 +35,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,  # Only configured origins, no wildcard
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],  # Only methods we actually use
     allow_headers=["Content-Type", "Authorization"],  # Only headers we need
 )
@@ -99,7 +97,7 @@ async def get_products(
         if size is not None and (size < 6 or size > 13):
             raise HTTPException(status_code=400, detail="size must be between 6 and 13")
 
-        if any([type, color, size, price_min, price_max]):
+        if any(value is not None for value in [type, color, size, price_min, price_max]):
             products = dynamodb_client.get_products_by_filters(
                 type=type,
                 color=color,

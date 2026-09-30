@@ -1,75 +1,37 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8000';
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8000',
+  timeout: 30000,
 });
 
-// Browse products with optional filters
-export const getProducts = async (filters = {}) => {
-  try {
-    const params = new URLSearchParams();
-
-    if (filters.type) params.append('type', filters.type);
-    if (filters.color) params.append('color', filters.color);
-    if (filters.size) params.append('size', filters.size);
-    if (filters.price_min) params.append('price_min', filters.price_min);
-    if (filters.price_max) params.append('price_max', filters.price_max);
-
-    const response = await api.get(`/api/products?${params.toString()}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    throw error;
-  }
+export const getProducts = async (filters = {}, options = {}) => {
+  const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== '' && value != null));
+  const { data } = await api.get('/api/products', { params, ...options });
+  return data.products || [];
 };
-
-// Get single product by ID
-export const getProductById = async (id) => {
-  try {
-    const response = await api.get(`/api/products/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    throw error;
-  }
+export const getProductById = async (id, options = {}) => {
+  const { data } = await api.get(`/api/products/${encodeURIComponent(id)}`, options);
+  return data;
 };
-
-// Get featured products
-export const getFeaturedProducts = async () => {
-  try {
-    const response = await api.get('/api/featured');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching featured products:', error);
-    throw error;
-  }
+export const getFeaturedProducts = async (options = {}) => {
+  const { data } = await api.get('/api/featured', options);
+  return data.products || [];
 };
-
-// Natural language AI search
-export const searchProducts = async (query) => {
-  try {
-    const response = await api.post('/api/search', { query });
-    return response.data;
-  } catch (error) {
-    console.error('Error searching products:', error);
-    throw error;
-  }
+export const searchProducts = async (query, sessionId, options = {}) => {
+  const { data } = await api.post('/api/search', { query, session_id: sessionId }, options);
+  return data;
 };
-
-// Get categories
-export const getCategories = async () => {
-  try {
-    const response = await api.get('/api/categories');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    throw error;
-  }
+export const getCategories = async (options = {}) => {
+  const { data } = await api.get('/api/categories', options);
+  return data;
 };
-
+export const getErrorMessage = (error) => {
+  if (error.code === 'ECONNABORTED') return 'This is taking longer than expected. Please try again.';
+  if (!error.response) return 'The catalog is unavailable right now. Please try again shortly.';
+  const detail = error.response.data?.detail;
+  if (error.response.status < 500 && typeof detail === 'string') return detail;
+  if (error.response.status === 422) return 'Please check your search or filter values and try again.';
+  return 'Something went wrong. Please try again.';
+};
 export default api;

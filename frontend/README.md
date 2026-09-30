@@ -1,143 +1,49 @@
-# ShoeHub Frontend
+# ShoeHub
 
-React frontend for the AWS Bedrock Shopping Agent learning project.
+A React 19 + Vite + Tailwind portfolio shopping demo, backed by FastAPI, DynamoDB, and AWS Bedrock Agents. The site supports product browsing, shareable filters, sorting, product details, and natural language search. Purchases and payments are not implemented.
 
-## Tech Stack
-
-- **React 18+** - UI framework
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling
-- **React Router** - Client-side routing
-- **Axios** - HTTP client for API calls
-
-## Project Structure
-
-```
-src/
-├── components/         # Reusable UI components
-│   ├── Header.jsx      # Main navigation + AI search bar
-│   ├── AISearchBar.jsx # Natural language search input
-│   ├── SearchResults.jsx # Agent response + products panel
-│   ├── ProductGrid.jsx  # Grid of product cards
-│   ├── ProductCard.jsx  # Individual shoe display card
-│   ├── FilterSidebar.jsx # Category/price/size filters
-│   ├── Hero.jsx         # Homepage hero section
-│   ├── Footer.jsx       # Site footer
-│   └── ProductDetail.jsx # Single product view
-├── pages/              # Page components
-│   ├── HomePage.jsx    # Landing page
-│   ├── BrowsePage.jsx  # Browse all products
-│   └── ProductPage.jsx # Product detail page
-├── services/           # API integration
-│   └── api.js          # API Gateway calls
-├── hooks/              # Custom React hooks
-│   ├── useProducts.js  # Product data management
-│   └── useAISearch.js  # AI search functionality
-├── App.jsx             # Main app with routing
-└── main.jsx            # Entry point
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ installed
-- Backend running on `http://localhost:8000` (or update `.env`)
-
-### Installation
+## Local development
 
 ```bash
-# Install dependencies
 npm install
-
-# Copy environment variables
-cp .env.example .env
-
-# Update .env with your API endpoint (defaults to localhost:8000)
-```
-
-### Development
-
-```bash
-# Start dev server
 npm run dev
-
-# Access at http://localhost:5173
 ```
 
-### Build for Production
+Start the backend from `backend/` in another terminal:
 
 ```bash
-# Create production build
-npm run build
-
-# Preview production build locally
-npm run preview
+venv/bin/python -m uvicorn app.main:app --reload --port 8000
 ```
 
-## Features
+The API defaults to `http://localhost:8000`. Set `VITE_API_GATEWAY_URL` in `.env.local` for a different backend. Vite exposes `VITE_` values to the browser; only put the public API URL there.
 
-### AI Search
-- Natural language search bar in header
-- Example: "red running shoes under $100 in size 10"
-- Displays agent response and matching products
-- Floating results panel with dismiss option
-
-### Browse Mode
-- Traditional product browsing
-- Filter by type, color, size, price
-- Responsive product grid
-- Click cards for detail view
-
-### Product Pages
-- Detailed product information
-- Size selection
-- Image gallery
-- Add to cart/wishlist (UI only)
-
-## Environment Variables
-
-Create a `.env` file:
-
-```env
-# Local development
-VITE_API_GATEWAY_URL=http://localhost:8000
-
-# Production
-# VITE_API_GATEWAY_URL=https://[api-id].execute-api.[region].amazonaws.com/prod
-```
-
-## API Endpoints Used
-
-- `GET /api/products` - Browse with filters
-- `GET /api/products/{id}` - Single product
-- `GET /api/featured` - Featured products
-- `POST /api/search` - AI natural language search
-
-## Deployment to AWS S3
+## Validation
 
 ```bash
-# Build production bundle
+npm run lint
 npm run build
-
-# Upload to S3 (replace with your bucket name)
-aws s3 sync dist/ s3://shoe-shopping-app-[unique-id]/ --delete
-
-# Invalidate CloudFront cache (if using CDN)
-aws cloudfront create-invalidation --distribution-id [ID] --paths "/*"
 ```
 
-## Development Notes
+From `backend/`, run the backend tests without live AWS credentials:
 
-- The app works with or without a backend (will show errors gracefully)
-- All API calls include error handling
-- Loading states are shown during data fetches
-- Responsive design works on mobile, tablet, and desktop
-- Images fallback to placeholders if URLs fail
+```bash
+AWS_ACCESS_KEY_ID=testing AWS_SECRET_ACCESS_KEY=testing AWS_EC2_METADATA_DISABLED=true venv/bin/python -m pytest -q
+```
 
-## Learn More
+## Search and demo behavior
 
-- [React Documentation](https://react.dev)
-- [Vite Documentation](https://vitejs.dev)
-- [Tailwind CSS](https://tailwindcss.com)
-- [React Router](https://reactrouter.com)
+- Local mode uses the same four sample products for search, browsing, and detail pages. Product photos are illustrative and load from Unsplash; unavailable product images use a local styled fallback.
+- Local search supports style, color, brand, US size, and price constraints such as “under $100” and “between $90 and $100”. It is a keyword parser, with no conversation memory.
+- Live mode preserves Bedrock sessions and reads product records from action-group trace output alongside the agent’s text. Structured JSON completions with `response` (or `agent_response`) and `products` are also supported, including JSON split across chunks and UTF-8 boundaries. Live failures show an error instead of silently substituting demo inventory. The search input allows up to 200 characters.
+- Clearing or replacing a search cancels pending requests. Escape, outside clicks, and navigation dismiss results.
+- Browse filters are stored in query parameters, so refresh and browser back/forward preserve them. Sorting is local to the page.
+
+## Production configuration
+
+Set the public API URL before building. Configure backend `CORS_ORIGINS_STR` as a comma-separated list containing the exact deployed frontend origin, for example `https://shop.higuera.io,http://localhost:5173`. Upload `dist/` through your existing deployment flow and configure CloudFront/S3 routing to serve `index.html` for client-side routes.
+
+## Audit follow-ups
+
+The September 2026 refresh fixed unsupported navigation categories, inconsistent stock fields, stale requests, filter synchronization, placeholder branding, nonfunctional checkout/newsletter controls, Bedrock stream parsing and trace compatibility, zero-price filters, and unrestricted CORS.
+
+Before deploying, validate the live Bedrock action group and structured responses with the deployed DynamoDB catalog, confirm the frontend URL and CORS origin, and verify CloudFront deep links. Live AWS infrastructure was not exercised by local validation. For a larger catalog, replace full-table DynamoDB scans with a suitable indexed query strategy. Dependency upgrades and AWS deployment are separate follow-up work.
